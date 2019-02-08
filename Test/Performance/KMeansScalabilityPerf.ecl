@@ -26,8 +26,8 @@ d02 := d01(id IN centroidsID);
 //Set up the parameters
 max_iteratons := 30;
 tolerance := 0.0;
-//Fit KMeans model with data points d01 and centroids d02
-KMeansRst := Cluster.KMeans(max_iteratons, tolerance).fit(d01, d02);
+//Fit KMeans model with the samples d01 and the centroids d02
+Model := Cluster.KMeans(max_iteratons, tolerance).fit(d01, d02);
 //Coordinates of cluster centers
-Centroids := KMeansRst.centroids;
+Centroids := Cluster.KMeans().Centers(Model);
 OUTPUT(Centroids);

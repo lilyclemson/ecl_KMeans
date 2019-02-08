@@ -321,36 +321,58 @@ EXPORT Cluster := MODULE
       END;
     RETURN getmodel;
     END;
-
     /**
-      * Compute cluster centers and predict cluster index for each new sample.
+      * Return the final coordinates of the centers from the trained model.
       * @param mod The fitted/trained KMeans model
-      * @param newSamples The samples used to predict their center
-      * @return centers index for each new sample
+      * @return centers The Final coordinates of the centers
+      */
+    EXPORT Centers(DATASET(Types.Layout_Model2) mod) := FUNCTION
+      index_centers := KM1.centers;
+      centers := ModelOps2.ToNumericField(mod, [index_centers]);
+      RETURN centers;
+    END;
+    /**
+      * Compute the cluster center for each new sample.
+      * @param mod The fitted/trained KMeans model
+      * @param newSamples The new samples to be clustered
+      * @return The index of the closest center for each new sample
       */
     EXPORT Predict(DATASET(Types.Layout_Model2) mod,
                                   DATASET(Types.NumericField) newSamples) := FUNCTION
-      index_centers := KM1.centers;
-      centers := ModelOps2.ToNumericField(mod, [index_centers]);
+      //Get the coordinates of the centers from the trained model
+      final_centers := Centers(mod);
       //Calculate the distances between each new sample to each center
-      new_closest := getClosest(newSamples, centers);
+      new_closest := getClosest(newSamples, final_centers);
       //Centers index for each sample
       Labels := SORT(PROJECT(new_closest, TRANSFORM(PTypes.Layout_Cell-v,
                                       SELF := LEFT)), wi_id, x);
       RETURN Labels;
     END;
     /**
-      * Compute the center of each training sample.
+      * Compute the closest center of each training sample from the trained Model.
       * @param mod The fitted/trained KMeans model
-      * @return centers index for each training sample
+      * @return The center index for each training sample
       */
-    EXPORT Groups(DATASET(Types.Layout_Model2) mod) := FUNCTION
+    EXPORT Labels(DATASET(Types.Layout_Model2) mod) := FUNCTION
       l := ModelOps2.Extract(mod, [KM1.samples]);
       Labels := PROJECT(l, TRANSFORM(PTypes.Layout_Cell-v,
                                 SELF.wi_id := LEFT.wi,
                                 SELF.x := LEFT.indexes[1],
                                 SELF.y := LEFT.value));
       RETURN Labels;
+    END;
+    /**
+      * Compute the iterations of each wi.
+      * @param mod The fitted/trained KMeans model
+      * @return iterations Total iteration runs of each wi
+      */
+    EXPORT iterations(DATASET(Types.Layout_Model2) mod) := FUNCTION
+      l := ModelOps2.Extract(mod, [KM1.iterations]);
+      iterations := PROJECT(l, TRANSFORM(RECORDOF(l)-indexes,
+                                SELF.wi := LEFT.wi,
+                                SELF.value := LEFT.value,
+                                ));
+      RETURN iterations;
     END;
   END;
 END;

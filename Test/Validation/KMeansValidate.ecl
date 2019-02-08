@@ -22,11 +22,11 @@ IMPORT Test;
 DSIris := Test.Datasets.DSIris.ds;
 //Add ID to each record
 ML_Core.AppendSeqId(DSIris, id, DSIrisWId);
-//Transform the raw data into  Machine Learning Dataframe:
+//Transform the raw data into Machine Learning Dataframe:
 //ML_Core.Types.NumericField
 ML_Core.ToField(DSIrisWId, DSIrisWIdWi);
-//Define d01: data points
-d01 := DSIrisWIdWi(number < 5); //Filter the attribute not used for clustering
+//Define d01: training samples
+d01 := DSIrisWIdWi(number < 5); //Filter unnecessary attribute not used for clustering
 //Define d02: initial centroids
 //Three centroids are initialized with 0, 1, 2 as its id respectively
 ids := [1,51,101];
@@ -37,17 +37,16 @@ d02 := PROJECT(d01(id IN ids),TRANSFORM(Types.NumericField,
 //Set up the parameters
 max_iteratons := 30;
 tolerance := 0.0;
-//Train KMeans model with data points d01 and centroids d02
-KMeansRst := Cluster.KMeans(max_iteratons, tolerance).fit(d01, d02);
+//Train KMeans model with the samples d01 and the centroids d02
+Model := Cluster.KMeans(max_iteratons, tolerance).fit(d01, d02);
 //Below are the results:
 //Coordinates of cluster centers
-Centroids := KMeansRst.centroids;
+Centroids := Cluster.KMeans().Centers(Model);
 //Number of iterations run
-Total_Iterations := KMeansRst.tol_iters;
-//Labels of each point
-Labels := KMeansRst.labels;
+Total_Iterations := Cluster.KMeans().iterations(Model);
+//Labels of each training sample
+Labels := Cluster.KMeans().Labels(Model);
 
-//
 //Validate the results against the results of sklearn.Cluster.KMeans
 ML_Core.ToField(Test.Datasets.DSIris.sklearn_rst, sklearn_rst);
 //Validation 1: Coordinates of each cluster center
@@ -60,11 +59,11 @@ Compare_Coordinate := JOIN(sklearn_rst,centroids,
                             SELF := LEFT), LEFT OUTER);
 IsSameCoordinate := IF(COUNT(Compare_Coordinate(value = 0)) = 0, TRUE, FALSE);
 OUTPUT(IsSameCoordinate, NAMED('IsSameCoordinate'));
-//Validation 2: Number of iteration run
+//Validation 2: Number of iteration runs
 sklearn_converge := Test.Datasets.DSIris.sklearn_converge;
-IsSameNumberRun := IF( Total_Iterations[1].iter = sklearn_converge, TRUE, False);
+IsSameNumberRun := IF( Total_Iterations[1].value = sklearn_converge, TRUE, False);
 OUTPUT(IsSameNumberRun, NAMED('IsSameNumberRun'));
-//Validation 3: Label of each point
+//Validation 3: Label of each sample
 sklearn_labels:= Test.Datasets.DSIris.sklearn_alleg;
 Compare_Label := JOIN(sklearn_labels, labels, LEFT.id = RIGHT.x,
                                       TRANSFORM({INTEGER id, BOOLEAN isSame},
@@ -72,6 +71,7 @@ Compare_Label := JOIN(sklearn_labels, labels, LEFT.id = RIGHT.x,
                                       SELF := LEFT), LEFT OUTER);
 IsSameLable := IF(COUNT(Compare_Label(isSame = FALSE)) = 0, TRUE, FALSE);
 OUTPUT(IsSameLable , NAMED('IsSameLable'));
-//IfValid if all the results are the same in two different implementations.
+//IfValid: if all the results are the same in two different implementations,
+//then result is TRUE. Or it's FALSE.
 IfValidated := IF(IsSameNumberRun, IF(IsSameLable, IF(IsSameCoordinate, TRUE, FALSE), False), False);
 OUTPUT(IfValidated, NAMED('Result_is_validated'));
