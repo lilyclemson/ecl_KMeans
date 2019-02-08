@@ -14,20 +14,20 @@
 
 IMPORT ML_Core;
 IMPORT ML_Core.Types;
+IMPORT Cluster_Types.KMeans_Model.Ind1 as KM1;
+IMPORT Cluster_Types.KMeans_Model.Ind3 as KM3;
 IMPORT PBblas.Types AS pTypes;
-IMPORT Test;
+IMPORT ML_Core.ModelOps2;
 
 EXPORT Cluster := MODULE
   /**
-  KMeans Algorithm is a popular clustering method for cluster analysis in data mining.
-  It iteratively update the cluster centroids until it reaches the tolerance.
-  ECL KMeans module is both highly data scalable and model scalable on HPCC Platform.
-  * @param max_iter    The maxinum number of iterations to run KMeans. It's a scaler value
-                       with default value 10.
-  * @param t           The converage rates. It's a scaler value with default value 0.0.
-  * @return            The centroids of each cluster.
-  * @see               ML_Core.Types.NumericField
-  */
+    KMeans Algorithm is a popular clustering method for cluster analysis in data mining.
+    It iteratively update the cluster centroids until it reaches the tolerance.
+    ECL KMeans module is both highly data scalable and model scalable on HPCC Platform.
+    * @param max_iter    The maxinum number of iterations to run KMeans. It's a scaler value
+                         with default value 10.
+    * @param t           The converage rates. It's a scaler value with default value 0.0.
+    */
   EXPORT KMeans(INTEGER max_iter = 10 , REAL t = 0.0) := MODULE
     // Dataframe to hold the intermediate/final results of distance calculation
     SHARED ClusterPair:=RECORD
@@ -49,22 +49,23 @@ EXPORT Cluster := MODULE
       INTEGER iter := 0;
     END;
     /**
-    Euclidean is the distance matric used in the classic KMeans algorithm to calcualte the
-    distances between the data points to the centroids.
-    * @x                 The data points for distance calcultion in DATASET(NumericField) format.
-    *                    Each observation (e.g. record) is identified by
-    *                    'id', and each feature is identified by field number (i.e.
-    *                    'number').
-    * @y                 The data points for distance calcultion in DATASET(NumericField) format.
-    *                    Each observation (e.g. record) is identified by
-    *                    'id', and each feature is identified by field number (i.e.
-    *                    'number').
-    * @mode              A discrecte value 1 or 0 to define how to calculate the Euclean
-    *                    distances between x and y in each model or wi.
-    *                    Mode 1: calculate the distances of each data pair of x and y
-    *                    Mode 2: calcualte the distances of the data pair with same id in x and y.
-    * @return            The distances of the data pairs
-    */
+      Euclidean is the distance matric used in the classic KMeans algorithm to calcualte the
+      distances between the data points to the centroids.
+      * @x                 The data points for distance calcultion in DATASET(NumericField) format.
+      *                    Each observation (e.g. record) is identified by
+      *                    'id', and each feature is identified by field number (i.e.
+      *                    'number').
+      * @y                 The data points for distance calcultion in DATASET(NumericField) format.
+      *                    Each observation (e.g. record) is identified by
+      *                    'id', and each feature is identified by field number (i.e.
+      *                    'number').
+      * @mode              A discrecte value 1 or 0 to define how to calculate the Euclean
+      *                    distances between x and y in each model or wi.
+      *                    Mode 1: calculate the distances of each data pair of x and y
+      *                    Mode 2: calcualte the distances of the data pair with same id in x and y.
+      * @return            The distances of data pairs
+      * @see               PBblas.Types.Layout_Cell
+      */
     SHARED Euclidean(DATASET(Types.NumericField) x, DATASET(Types.NumericField) y, Types.t_Discrete mode = 0) := FUNCTION
       //Two modes: 0 --> one to many Euclidean, 1 --> one to one Euclidean
       //Mode 1: one to many
@@ -122,25 +123,71 @@ EXPORT Cluster := MODULE
       RETURN IF(MODE = 0,one2many, one2one);
     END;
     /**
-    Fit module is to use the data points d01 and initial centroids d02 to train
-    KMeans model.
-    * @param d1          The data points to be clustered in DATASET(NumericField) format.
-    *                    Each observation (e.g. record) is identified by
-    *                    'id', and each feature is identified by field number (i.e.
-    *                    'number').
-    * @param d2          The initial K centroids for clustering in DATASET(NumericField)
-    *                    format. Each observation (e.g. record) is identified by
-    *                    'id', and each feature is identified by field number.
-    */
-    EXPORT FIT(DATASET(Types.NumericField) d1, DATASET(Types.NumericField) d2) := MODULE
+      getClosest() is used to calcalate the closest center of sample via Euclidean distance.
+      * @x                 The data points for distance calcultion in DATASET(NumericField) format.
+      *                    Each observation (e.g. record) is identified by
+      *                    'id', and each feature is identified by field number (i.e.
+      *                    'number').
+      * @y                 The data points for distance calcultion in DATASET(NumericField) format.
+      *                    Each observation (e.g. record) is identified by
+      *                    'id', and each feature is identified by field number (i.e.
+      *                    'number').
+      * @return            The closest center of each sample and their distance
+      * @see               PBblas.Types.Layout_Cell
+      */
+    SHARED getClosest(DATASET(Types.NumericField) x, DATASET(Types.NumericField) y) := FUNCTION
+      dx := DISTRIBUTE(x, HASH32(wi, id));
+      m0_axis := JOIN(dx, y, LEFT.wi = RIGHT.wi AND LEFT.number = RIGHT.number,
+                        TRANSFORM(ClusterPair,
+                                    SELF.wi:= LEFT.wi,
+                                    SELF.id := LEFT.id,
+                                    SELF.clusterid := RIGHT.id,
+                                    SELF.number :=LEFT.number,
+                                    SELF.value01 := LEFT.value,
+                                    SELF.value02 := RIGHT.value,
+                                    SELF.value03 := POWER(LEFT.value - RIGHT.value, 2)),
+                                    MANY LOOKUP);
+      m0_g := GROUP(SORT(m0_axis, wi, id, clusterid, LOCAL),wi, id, clusterid,LOCAL);
+      ClusterPair take(ClusterPair le, DATASET(ClusterPair) ri) := TRANSFORM
+            SELF.value03 := SQRT(SUM(ri,value03));
+            SELF.number := 0;
+            SELF.value01 := 0;
+            SELF.value02 := 0;
+            SELF := le;
+      END;
+      one2many := PROJECT(ROLLUP(m0_g, GROUP, take(LEFT, ROWS(LEFT))),
+                                                  TRANSFORM(pTypes.Layout_Cell,
+                                                      SELF.wi_id := LEFT.wi,
+                                                      SELF.x := LEFT.id,
+                                                      SELF.y := LEFT.clusterid,
+                                                      SELF.v := LEFT.value03));
+      //Calculate the closest centroid of each data point
+      s :=SORT(one2many, wi_id, x, v, LOCAL);
+      rst := DEDUP(s, wi_id, x, LOCAL);
+      RETURN rst;
+    END;
+
+    /**
+      Fit function takes the samples d01 and initial centroids d02 to train KMeans model.
+      * @param d1          The data points to be clustered in DATASET(NumericField) format.
+      *                    Each observation (e.g. record) is identified by
+      *                    'id', and each feature is identified by field number (i.e. 'number').
+      * @param d2          The initial K centroids for clustering in DATASET(NumericField)
+      *                    format. Each observation (e.g. record) is identified by
+      *                    'id', and each feature is identified by field number.
+      * @return            KMeans Model in the format of ML_Core.Types.Layout_Model2
+      * @see               ML_Core.Types.Layout_Model2
+      * @see               Cluster_Types.KMeans_Model
+      */
+    EXPORT Fit(DATASET(Types.NumericField) d1, DATASET(Types.NumericField) d2) := FUNCTION
       //Distribute the data points d1 to each node. Same id of each wi will be on the same node.
-      SHARED dp := DISTRIBUTE(d1, HASH32(wi, id));
+      dp := DISTRIBUTE(d1, HASH32(wi, id));
       //Hold the initial centroids in the right dataframe: lIterations.
-      SHARED d2itr := PROJECT(d2, TRANSFORM(lIterations,
+      d2itr := PROJECT(d2, TRANSFORM(lIterations,
                                               SELF.values := [LEFT.value],
                                               SELF := LEFT));
       //EM function: LOOP body to iteratively update the coordinates of the centroids
-      SHARED EM(DATASET(literations) ds, INTEGER c) := FUNCTION
+      EM(DATASET(literations) ds, INTEGER c) := FUNCTION
         //Distribute the data points evenly on the cluster
         dc := DISTRIBUTE(ds, HASH32(wi, id));
         //Extract the result of last iteration
@@ -226,26 +273,84 @@ EXPORT Cluster := MODULE
         RETURN updated;
       END;
       //LOOP function to start the EM iteration steps.
-      SHARED result := LOOP(d2itr, max_iter, LEFT.ifConverge = FALSE, EXISTS(ROWS(LEFT)(ifConverge = FALSE)), em(ROWS(LEFT), COUNTER));
+      result := LOOP(d2itr, max_iter, LEFT.ifConverge = FALSE, EXISTS(ROWS(LEFT)(ifConverge = FALSE)), em(ROWS(LEFT), COUNTER));
       //Below are the results of KMeans
       //#iterations
-      EXPORT tol_iters :=TABLE(result, {wi, iter}, wi, iter, MERGE);
+      tol_iters :=TABLE(result, {wi, iter}, wi, iter, MERGE);
       //cluster_centers
-      EXPORT centroids := PROJECT(result, TRANSFORM(Types.NumericField,
+      centroids := PROJECT(result, TRANSFORM(Types.NumericField,
                                           SELF.value := LEFT.values[LEFT.iter + 1],
                                           SELF := LEFT));
       //labels
-      SHARED movement := Euclidean(dp, centroids);
-      SHARED g :=SORT(GROUP(movement,wi_id, x,ALL),wi_id, x, v);
-      SHARED closest := DEDUP(g, wi_id, x);
-      EXPORT Labels := PROJECT(DEDUP(g, wi_id, x),TRANSFORM(RECORDOF(g)-v, SELF := LEFT));
+      movement := Euclidean(dp, centroids);
+      g :=SORT(GROUP(movement,wi_id, x,ALL),wi_id, x, v);
+      closest := DEDUP(g, wi_id, x);
+      Labels := PROJECT(DEDUP(g, wi_id, x),TRANSFORM(RECORDOF(g)-v, SELF := LEFT));
       //inertia
-      SHARED members_count:= TABLE(closest, {wi_id, y, cnt := COUNT(GROUP), s := SUM(GROUP, POWER(v,2))}, wi_id, y, FEW);
-      EXPORT inertia := SUM(members_count, s);
-      EXPORT cluster_members := PROJECT(members_count, TRANSFORM({INTEGER wi, INTEGER id, INTEGER members_count},
+      members_count:= TABLE(closest, {wi_id, y, cnt := COUNT(GROUP), s := SUM(GROUP, POWER(v,2))}, wi_id, y, FEW);
+      inertia := SUM(members_count, s);
+      cluster_members := PROJECT(members_count, TRANSFORM({INTEGER wi, INTEGER id, INTEGER members_count},
                                                               SELF.wi := LEFT.wi_id,
                                                               SELF.id := LEFT.y,
                                                               SELF.members_count := LEFT.cnt));
+      /**
+        * Get KMeans model
+        *
+        * The model includes below information:
+        * 1. The coordinates of each center
+        * 2. The samples of each Cluster/center
+        * 3. The iteration runs of each wi
+        *
+        * KMeans uses the Layout_Model2 format
+        * See Cluster_Types.ecl for the format of the model
+        *
+        */
+      DATASET(Types.Layout_Model2) getModel := FUNCTION
+        centers := ModelOps2.FromNumericField(Centroids, [KM1.Centers]);
+        samples := PROJECT(Labels, TRANSFORM(Types.Layout_Model2,
+                    SELF.wi := LEFT.wi_id,
+                    SELF.value := LEFT.y,
+                    SELF.indexes := [KM1.samples, LEFT.x],
+                    ));
+        iterations := PROJECT(tol_iters, TRANSFORM(Types.Layout_Model2,
+                        SELF.wi := LEFT.wi,
+                        SELF.value := LEFT.iter,
+                        SELF.indexes := [KM1.iterations]));
+        mod := centers + samples + iterations;
+      RETURN mod;
+      END;
+    RETURN getmodel;
+    END;
+
+    /**
+      * Compute cluster centers and predict cluster index for each new sample.
+      * @param mod The fitted/trained KMeans model
+      * @param newSamples The samples used to predict their center
+      * @return centers index for each new sample
+      */
+    EXPORT Predict(DATASET(Types.Layout_Model2) mod,
+                                  DATASET(Types.NumericField) newSamples) := FUNCTION
+      index_centers := KM1.centers;
+      centers := ModelOps2.ToNumericField(mod, [index_centers]);
+      //Calculate the distances between each new sample to each center
+      new_closest := getClosest(newSamples, centers);
+      //Centers index for each sample
+      Labels := SORT(PROJECT(new_closest, TRANSFORM(PTypes.Layout_Cell-v,
+                                      SELF := LEFT)), wi_id, x);
+      RETURN Labels;
+    END;
+    /**
+      * Compute the center of each training sample.
+      * @param mod The fitted/trained KMeans model
+      * @return centers index for each training sample
+      */
+    EXPORT Groups(DATASET(Types.Layout_Model2) mod) := FUNCTION
+      l := ModelOps2.Extract(mod, [KM1.samples]);
+      Labels := PROJECT(l, TRANSFORM(PTypes.Layout_Cell-v,
+                                SELF.wi_id := LEFT.wi,
+                                SELF.x := LEFT.indexes[1],
+                                SELF.y := LEFT.value));
+      RETURN Labels;
     END;
   END;
 END;
