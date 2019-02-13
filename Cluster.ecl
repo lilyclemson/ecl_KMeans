@@ -14,9 +14,11 @@
 
 IMPORT ML_Core;
 IMPORT ML_Core.Types;
-IMPORT Cluster_Types.KMeans_Model.Ind1 as KM1;
-IMPORT PBblas.Types AS pTypes;
 IMPORT ML_Core.ModelOps2;
+IMPORT PBblas.Types AS pTypes;
+IMPORT Cluster_Types.KMeans_Model AS KTypes;
+IMPORT Cluster_Types.KMeans_Model.Ind1 as KM1;
+
 
 EXPORT Cluster := MODULE
   /**
@@ -364,6 +366,7 @@ EXPORT Cluster := MODULE
       * @param mod          The fitted/trained KMeans model.
       * @param newSamples   The new samples to be clustered.
       * @return             The index of the closest center for each new sample.
+      * @see                Cluster_Types.KMeans_Model.Labels
       */
     EXPORT Predict(DATASET(Types.Layout_Model2) mod,
                                   DATASET(Types.NumericField) newSamples) := FUNCTION
@@ -372,23 +375,25 @@ EXPORT Cluster := MODULE
       //Calculate the distances between each new sample to each center
       new_closest := getClosest(newSamples, final_centers);
       //The closest center index for each sample
-      Labels := SORT(PROJECT(new_closest, TRANSFORM(PTypes.Layout_Cell-v,
-                                      SELF := LEFT)), wi_id, x);
+      Labels := SORT(PROJECT(new_closest, TRANSFORM(KTypes.Labels,
+                                                      SELF.wi := LEFT.wi_id,
+                                                      SELF.id := LEFT.x,
+                                                      SELF.label := LEFT.y)),
+                    wi, id);
       RETURN Labels;
     END;
     /**
       * Function Labels() computes the closest center of each training sample
       * from the trained Model.
       * @param mod    The fitted/trained KMeans model.
-      * @return       The center index for each training sample.
+      * @return       The closest center index for each training sample.
       */
-      //**need the new format too, see Predict()
     EXPORT Labels(DATASET(Types.Layout_Model2) mod) := FUNCTION
       l := ModelOps2.Extract(mod, [KM1.samples]);
-      Labels := PROJECT(l, TRANSFORM(PTypes.Layout_Cell-v,
-                                SELF.wi_id := LEFT.wi,
-                                SELF.x := LEFT.indexes[1],
-                                SELF.y := LEFT.value));
+      Labels := PROJECT(l, TRANSFORM(KTypes.Labels,
+                                SELF.wi := LEFT.wi,
+                                SELF.id := LEFT.indexes[1],
+                                SELF.label := LEFT.value));
       RETURN Labels;
     END;
     /**
