@@ -73,7 +73,7 @@ IsSameNumberRun := IF(COUNT(Compare_runs) <> 0, FALSE , TRUE);
 OUTPUT(IsSameNumberRun , NAMED('IsSameNumberRun'));
 //Validation 3: Label of each sample
 Compare_Label := JOIN(labels, base_labels,
-                        LEFT.x = RIGHT.x AND LEFT.y <> RIGHT.y,
+                        LEFT.id = RIGHT.id AND LEFT.label <> RIGHT.label,
                         LOOKUP);
 IsSameLable :=  IF(COUNT(Compare_Label) = 0, TRUE, FALSE);
 OUTPUT(IsSameLable , NAMED('IsSameLable'));

@@ -66,9 +66,9 @@ IsSameNumberRun := IF( Total_Iterations[1].value = sklearn_converge, TRUE, False
 OUTPUT(IsSameNumberRun, NAMED('IsSameNumberRun'));
 //Validation 3: Label of each sample
 sklearn_labels:= Test.Datasets.DSIris.sklearn_alleg;
-Compare_Label := JOIN(sklearn_labels, labels, LEFT.id = RIGHT.x,
+Compare_Label := JOIN(sklearn_labels, labels, LEFT.id = RIGHT.id,
                                       TRANSFORM({INTEGER id, BOOLEAN isSame},
-                                      SELF.isSame := IF(LEFT.y = RIGHT.y, TRUE, FALSE),
+                                      SELF.isSame := IF(LEFT.y = RIGHT.Label, TRUE, FALSE),
                                       SELF := LEFT), LEFT OUTER);
 IsSameLable := IF(COUNT(Compare_Label(isSame = FALSE)) = 0, TRUE, FALSE);
 OUTPUT(IsSameLable , NAMED('IsSameLable'));
