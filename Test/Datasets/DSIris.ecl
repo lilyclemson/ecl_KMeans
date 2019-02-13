@@ -1,10 +1,12 @@
 IMPORT ML_Core.Types;
 
-// Public Dataset Iris
-// Reference
-// [1] Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository
-// [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,
-// School of Information and Computer Science
+/**
+  * The file provide the information of the testing dataset: Public Dataset Iris.
+  * Reference
+  * [1] Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository
+  *     [http:*archive.ics.uci.edu/ml]. Irvine, CA: University of California,
+  *     School of Information and Computer Science.
+  */
 
 EXPORT DSIris := MODULE
   //RECORD structure of Iris dataset

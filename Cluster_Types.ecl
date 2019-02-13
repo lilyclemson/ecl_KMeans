@@ -19,7 +19,7 @@ EXPORT Cluster_Types := MODULE
     */
   EXPORT KMeans_Model := MODULE
     /**
-      * Index 1 represents the category of data within the model
+      * Index 1 represents the category of data within the model.
       *
       * @value reserved = 1.   Reserved for future use.
       * @value centers = 2.    The set of tree nodes within the model.
@@ -42,7 +42,7 @@ EXPORT Cluster_Types := MODULE
       */
     EXPORT Ind2 := MODULE
       EXPORT Types.t_index id := 1;
-      EXPORT Types.t_index number := 2;
+      EXPORT Types.t_index number := 1;
     END;
     /**
       * Ind3 enumerates the indexes of each sample which is the
@@ -54,6 +54,21 @@ EXPORT Cluster_Types := MODULE
       */
     EXPORT Ind3 := MODULE
       EXPORT Types.t_index id := 1;
+    END;
+    EXPORT Centers_Indexes := ENUM(UNSIGNED2,  id=2, number=3);
+    EXPORT Samples_Indexes := ENUM(UNSIGNED2,  id=2);
+    /**
+      * Labels format defines the distance space where each cluster defined by
+      * a center and its closest samples.
+      *
+      * @value wi      The model identifier.
+      * @value id      The sample identifier.
+      * @value lable   The identifier of the closest center to the sample.
+      */
+    EXPORT Labels := RECORD
+      Types.t_Work_Item wi;      // Model Identifier
+      Types.t_RecordID  id;      // Sample Identifier
+      Types.t_RecordID  label;   // Center Identifier
     END;
   END;//KMeans-Types
 END; //Cluster_Types

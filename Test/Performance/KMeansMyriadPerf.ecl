@@ -1,10 +1,10 @@
 /**
-The use of this code is to test the Myriad interface of ECL KMeans Clustering Algorithm
-using the standard public dataset Iris[1].
+* The use of this code is to test the Myriad interface of ECL KMeans Clustering Algorithm
+* using the standard public dataset Iris[1].
 * Reference
 * [1] Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository
-      [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,
-      School of Information and Computer Science
+*     [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,
+*     School of Information and Computer Science.
 */
 
 IMPORT ML_Core;
@@ -61,7 +61,8 @@ labels := Cluster.KMeans().Labels(Myriad_Model);
 Compare_Coordinate := JOIN(Centroids, base_Centroids,
                         LEFT.id = RIGHT.id AND LEFT.number = RIGHT.number,
                                 TRANSFORM(Types.NumericField,
-                                          SELF.value :=  (DECIMAL10_8)LEFT.value - (DECIMAL10_8)RIGHT.value;
+                                          SELF.value :=
+                                              (DECIMAL10_8)LEFT.value - (DECIMAL10_8)RIGHT.value;
                                           SELF := LEFT),
                       LOOKUP);
 IsSameCoordinate := IF(COUNT(Compare_Coordinate(value <> 0)) = 0, TRUE, FALSE);
@@ -78,5 +79,11 @@ IsSameLable :=  IF(COUNT(Compare_Label) = 0, TRUE, FALSE);
 OUTPUT(IsSameLable , NAMED('IsSameLable'));
 //IsMyriadWork: if all the results are the same,
 //then result is TRUE. Or it's FALSE.
-IsMyriadWork := IF(IsSameNumberRun, IF(IsSameLable, IF(IsSameCoordinate, TRUE, FALSE), False), False);
+IsMyriadWork := IF(IsSameNumberRun,
+                    IF(IsSameLable,
+                        IF(IsSameCoordinate,
+                                            TRUE,
+                                              FALSE),
+                                                False),
+                                                  False);
 OUTPUT(IsMyriadWork, NAMED('IsMyriadWork'));

@@ -1,11 +1,11 @@
 /**
-The use of this code is to test the scalability of ECL KMeans Clustering Algorithm
-using the standard public dataset Iris[1].
-* Reference
-* [1] Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository
-      [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,
-      School of Information and Computer Science
-*/
+  * The use of this code is to test the scalability of ECL KMeans Clustering Algorithm
+  * using the standard public dataset Iris[1].
+  * Reference
+  * [1] Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository
+  *     [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,
+  *     School of Information and Computer Science.
+  */
 IMPORT ML_Core;
 IMPORT ML_Core.Types;
 IMPORT Test;
