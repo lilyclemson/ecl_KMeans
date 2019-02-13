@@ -33,37 +33,29 @@ EXPORT Cluster_Types := MODULE
       EXPORT Types.t_index iterations := 4;
     END;
     /**
-      * Ind2 enumerates the seoncd and third indexes of each center which is the
+      * Centers_Indexes enumerates the seoncd and third indexes of each center which is the
       * parent index. The parent index value is 2. It is used to store the id and
       * the field value of each center.
       *
-      * @value id = 1.  The center identifier.
-      * @value number = 2.  The field identifier.
+      * @value id = 2.      The center identifier.
+      * @value number = 3.  The field identifier.
       */
-    EXPORT Ind2 := MODULE
-      EXPORT Types.t_index id := 1;
-      EXPORT Types.t_index number := 1;
-    END;
+    EXPORT Centers_Indexes := ENUM(UNSIGNED2,  id=2, number=3);
     /**
-      * Ind3 enumerates the indexes of each sample which is the
+      * Samples_Indexes enumerates the indexes of each sample which is the
       * parent index. The parent index value is 3. It is used to store
       * the sampleID. The value is the Id of its closest center.
       *
-      * @value id = 1.  The sample identifier.
-      * @value
+      * @value id = 2.  The sample identifier.
       */
-    EXPORT Ind3 := MODULE
-      EXPORT Types.t_index id := 1;
-    END;
-    EXPORT Centers_Indexes := ENUM(UNSIGNED2,  id=2, number=3);
     EXPORT Samples_Indexes := ENUM(UNSIGNED2,  id=2);
     /**
       * Labels format defines the distance space where each cluster defined by
       * a center and its closest samples.
       *
-      * @value wi      The model identifier.
-      * @value id      The sample identifier.
-      * @value lable   The identifier of the closest center to the sample.
+      * @field  wi      The model identifier.
+      * @field  id      The sample identifier.
+      * @field  lable   The identifier of the closest center to the sample.
       */
     EXPORT Labels := RECORD
       Types.t_Work_Item wi;      // Model Identifier
